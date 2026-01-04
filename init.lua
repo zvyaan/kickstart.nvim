@@ -230,6 +230,13 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+vim.api.nvim_create_autocmd('LspAttach', {
+  callback = function(args)
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
+    --client.server_capabilities.semanticTokensProvider = nil
+  end,
+})
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -875,7 +882,9 @@ require('lazy').setup({
       completion = {
         -- By default, you may press `<c-space>` to show the documentation.
         -- Optionally, set `auto_show = true` to show the documentation after a delay.
-        list = { preselect = false },
+        list = { selection = {
+          preselect = false,
+        } },
         documentation = { auto_show = true, auto_show_delay_ms = 500 },
       },
 
@@ -902,26 +911,18 @@ require('lazy').setup({
     },
   },
 
-  { -- You can easily change to a different colorscheme.
-    -- Change the name of the colorscheme plugin below, and then
-    -- change the command in the config to whatever the name of that colorscheme is.
-    --
-    -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    'ramojus/mellifluous.nvim',
-    priority = 1000, -- Make sure to load this before all the other start plugins.
-    config = function()
-      ---@diagnostic disable-next-line: missing-fields
-      require('mellifluous').setup {
-        styles = {
-          main_keywords = { bold = true }, -- Disable italics in comments
-        },
-      }
+  {
+    'wtfox/jellybeans.nvim',
+    lazy = false,
+    priority = 1000,
+    opts = {
+      transparent = true,
+    }, -- Optional
 
-      -- Load the colorscheme here.
-      -- Like many other themes, this one has different styles, and you could load
-      -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'mellifluous'
-    end,
+      config = function(_, opts)
+    require('jellybeans').setup(opts)
+    vim.cmd.colorscheme('jellybeans-muted')
+  end,
   },
 
   -- Highlight todo, notes, etc in comments
@@ -944,26 +945,44 @@ require('lazy').setup({
       -- - sd'   - [S]urround [D]elete [']quotes
       -- - sr)'  - [S]urround [R]eplace [)] [']
       require('mini.surround').setup()
-
-      -- Simple and easy statusline.
-      --  You could remove this setup call if you don't like it,
-      --  and try some other statusline plugin
-      local statusline = require 'mini.statusline'
-      -- set use_icons to true if you have a Nerd Font
-      statusline.setup { use_icons = vim.g.have_nerd_font }
-
-      -- You can configure sections in the statusline by overriding their
-      -- default behavior. For example, here we set the section for
-      -- cursor location to LINE:COLUMN
-      ---@diagnostic disable-next-line: duplicate-set-field
-      statusline.section_location = function()
-        return '%2l:%-2v'
-      end
-
       -- ... and there is more!
       --  Check out: https://github.com/echasnovski/mini.nvim
     end,
   },
+
+  {
+    'itchyny/lightline.vim',
+    lazy = false, -- also load at start since it's UI
+    config = function()
+      -- no need to also show mode in cmd line when we have bar
+      vim.o.showmode = false
+      vim.g.lightline = {
+        active = {
+          left = {
+            { 'mode', 'paste' },
+            { 'readonly', 'filename', 'modified' },
+          },
+          right = {
+            { 'lineinfo' },
+            { 'percent' },
+            { 'fileencoding', 'filetype' },
+          },
+        },
+        colorscheme = 'powerlineish',
+        component_function = {
+          filename = 'LightlineFilename',
+        },
+      }
+      function LightlineFilenameInLua(opts)
+        if vim.fn.expand '%:t' == '' then
+          return '[No Name]'
+        else
+          return vim.fn.getreg '%'
+        end
+      end
+    end,
+  },
+
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
